@@ -1,0 +1,101 @@
+# docker build -f .\src\main\docker\Dockerfile -t ylvaldes-telegram-reader .
+
+##Levantar Postgres y dev
+#  docker-compose -f .\src\main\docker\docker-compose.yml --profile=postgres --profile=dev  up
+
+##Levantar Postgres y prod
+#  docker-compose -f .\src\main\docker\docker-compose.yml --profile=postgres --profile=prod  up
+
+##Levantar prod
+#  docker-compose -f .\src\main\docker\docker-compose.yml --profile=prod  up
+name: telegram-reader
+networks:
+  nginx-db-ciam:
+    external: true
+    name: nginx-db-ciam
+
+x-logging:
+  &default-logging
+  driver: "json-file"
+  options:
+    max-size: "1m"
+    max-file: "1"
+    tag: "{{.Name}}"
+
+services:
+  ylvaldes-telegram-reader-dev:
+    restart: always
+    image: ylvaldes-telegram-reader
+    container_name: ylvaldes-telegram-reader-dev
+    environment:
+      #App configuration
+      PORT: ${PORT:-8020}
+      #DB configuration
+      JDBC_DATABASE_URL: ${JDBC_DATABASE_URL:-jdbc:postgresql://ciam-db-postgresql-15:5432/facturauy}
+      JDBC_DATABASE_USERNAME: ${JDBC_DATABASE_USERNAME:-facturauser}
+      JDBC_DATABASE_PASSWORD: ${JDBC_DATABASE_PASSWORD:-f@ctura}
+      #Log configuration
+      LOGGING_LEVEL_ROOT: ${LOGGING_LEVEL_ROOT:-INFO}
+    profiles:
+      - dev
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    networks:
+      - nginx-db-ciam
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports: # If you want to expose these ports outside your dev PC, remove the "127.0.0.1:" prefix
+      - 8020:8020
+
+  ylvaldes-telegram-reader:
+    restart: always
+    image: ylvaldes-telegram-reader
+    container_name: ylvaldes-telegram-reader
+    environment:
+      #App configuration
+      PORT: ${PORT:-8020}
+      #DB configuration
+      JDBC_DATABASE_URL: ${JDBC_DATABASE_URL:-jdbc:postgresql://ciam-db-postgresql:5432/facturauy-prod}
+      JDBC_DATABASE_USERNAME: ${JDBC_DATABASE_USERNAME:-facturauser}
+      JDBC_DATABASE_PASSWORD: ${JDBC_DATABASE_PASSWORD:-f@ctura}
+      #Log configuration
+      LOGGING_LEVEL_ROOT: ${LOGGING_LEVEL_ROOT:-INFO}
+      spring.profiles.active: prod
+    profiles:
+      - prod
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    networks:
+      - nginx-db-ciam
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports: # If you want to expose these ports outside your dev PC, remove the "127.0.0.1:" prefix
+      - 8020:8020
+
+  ylvaldes-db-postgresql:
+    image: ciam-postgres
+    container_name: ylvaldes-db-postgresql
+    logging: *default-logging
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - postgres
+      - dev
+      - prod
+    restart: always
+    volumes:
+      - F:\docker_data\postgresql\:/var/lib/postgresql/data/
+    networks:
+      - nginx-db-ciam
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 5432:5432
+

@@ -1,0 +1,6 @@
+
+spring:
+  datasource:
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/facturauy-prod}
+    username: ${JDBC_DATABASE_USERNAME:facturauser}
+    password: ${JDBC_DATABASE_PASSWORD:f@ctura}
